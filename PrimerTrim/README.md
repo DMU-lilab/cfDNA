@@ -4,6 +4,7 @@ Used to trim off the primer sequence from amplicon fastq file
 
 
 __PROGRAM: PrimerTrim__<br>
+__VERSION: 1.2__<br>
 __PLATFORM: Linux__<br>
 __COMPILER: gcc-4.8.5__<br>
 __AUTHOR: xlzh__<br>
