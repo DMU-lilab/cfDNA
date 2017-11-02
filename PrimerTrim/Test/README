@@ -6,21 +6,20 @@ There are two match status between the primer and sequence:
 eg.1 The DNA templete is shorted than the Illumina read (usually occur in the CfDNA)
 NOTE: has a forward primer and reverse complement primer
 
-                                             fastq templete
-                                                  |
-NCCATACAATTTGATGACATGTGGGTGGTTGACCTGCTTCAGGACGTTGAACTCTGTCGGGGAGGCGTTCTCTGAAATGCAGCACAGAGCAGGTTGCAAACGATCGCTCCTGGAAGCAGATCGGAAGAG
-CCCATACAATTTGATGACATGTGGG                                                                          ACGATCGCTCCTGGAAGC
-         |                                                                                                 | 
-    forward primer                                                                             reverse complement primer
+                                   fastq sequence
+                                          |
+NCCATACAATTTGATGACATGTGGGTGGTTGACCTGCTTCAGGACGTTGAACTCTGTTTGCAAACGATCGCTCCTGGAAGCAGATCG
+CCCATACAATTTGATGACATGTGGG                                      ACGATCGCTCCTGGAAGC
+         |                                                             | 
+    forward primer                                          reverse complement primer
 
 
 eg.2 The DNA templete is longer than the Illumina read (the general condition)
 NOTE: only has forward primer
 
-                                             fastq templete
-                                                  |
-NCCATACAATTTGATGACATGTGGGTGGTTGACCTGCTTCAGGACGTTGAACTCTGACAGCAGGGCGTTCTCTGAAATGCAGCACAGAGCAGGTTGCAAACGATCGCTCCTGGAAGCAGATCGGAAGAG
-CCCATACAATTTGATGACATGTGGG 
-         | 
-    forward primer 
-
+                                   fastq sequence
+                                          |
+NCCATACAATTTGATGACATGTGGGTGGTTGACCTGCTTCAGGACGTTGAACTCTGTTTGCAAACGATCGCTCCTGGAAGCAGATCG
+CCCATACAATTTGATGACATGTGGG
+         |
+    forward primer
