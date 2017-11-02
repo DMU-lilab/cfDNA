@@ -27,7 +27,7 @@ Building
 =========================
 
 The simple way to compile the program, is done as follows:
-* cd ./Version1.2
+* cd ./cfDNA/PrimerTrim/
 * make
 * make clean
 
