@@ -4,7 +4,7 @@ Used to trim off the primer sequence from amplicon fastq file
 
 
 __PROGRAM: PrimerTrim__<br>
-__VERSION: 1.2__<br>
+__VERSION: 1.2.1__<br>
 __PLATFORM: Linux__<br>
 __COMPILER: gcc-4.8.5__<br>
 __AUTHOR: xlzh__<br>
@@ -19,9 +19,10 @@ __DEPENDENCE__<br>
 
 Description
 =========================
-The program is used to trim off the primer sequence of the target sequencing. <br>
-The performing of k-mer indexing alogrithm makes it possible to deal with __thousands of amplicon primer pairs__ at the same time.<br>
-Compared with other kinds of tools, this program could trim the primer sequence off directly from the fastq file, which could save you a lot of time.<br>
+* The program is used to trim off the primer sequence of the target sequencing. <br>
+* The performing of k-mer indexing alogrithm makes it possible to deal with __thousands of amplicon primer pairs__ at the same time.<br>
+* Compared with other kinds of tools, this program could trim the primer sequence off directly from the fastq file, which could save you a lot of time.<br>
+* There only have 250 reads in the example fastq file, which result in a higher mismatch ratio. But in the general amplicon data, the program will has a good performance and lower mismatch ratio<br>.
 
 
 Building
@@ -32,7 +33,7 @@ The simple way to compile the program, is done as follows:
 * make
 * make clean
 
-Then there will be generate an executable file ---> primtrim-1.2
+Then there will be generate an executable file ---> primtrim-1.2.1
 
 
 Usage
@@ -42,7 +43,7 @@ Usage
          -a|--ampfile     [required] input amplicon file[.csv]
          -r|--read1       [required] read1 for fastq file[.fq|.gz]
          -l|--read2       [required] read2 for fastq file[.fq|.gz]
-         -o|--outdir      [required] output directory for trimed fastq file
+         -o|--outdir      [required] output directory for trimed fastq file [dir]
          -k|--kmer        [optional] The kmer lenght for indexing [8]
          -m|--mismatch    [optional] the maxmum mismatch for primer seq [3]
 

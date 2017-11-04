@@ -41,7 +41,7 @@ static query_t SeqQuery(char *seq, hash_t *H, prim_t *P, int mis, int kmer)
     query_t Q = {1,0,0,0};
     char key[KEYLEN];
 
-    int cutlen = strlen(seq) -kmer;
+    int cutlen = 3 + mis;
 
     /* 'N' is imposible occured in primer index */
     for (int i=0; i < cutlen; i++) {
@@ -63,7 +63,7 @@ static query_t SeqQuery(char *seq, hash_t *H, prim_t *P, int mis, int kmer)
 
             if (shift >= 0)
                 string = seq + shift;
-            else if (shift < 0 && shift >= -5) 
+            else if (shift < 0 && shift >= -3) 
                 pstr -= shift;
             else
                 continue;
@@ -109,7 +109,7 @@ query_t PrimQuery(char *seq, arginfo_t *arg)
         return Q;
     }
 
-    int rstart = f.pend + amp->insertlen - 4;
+    int rstart = f.pend + amp->insertlen - 3;
     r = SeqQuery(seq+rstart, arg->revindex_list[f.ploc],
                 arg->revprim_list[f.ploc], arg->args->mismatch, arg->args->kmer);
     if (!r.isfind) { 

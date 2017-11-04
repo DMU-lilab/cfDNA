@@ -1,0 +1,42 @@
+# RELEASE_HISTORY #
+
+===================== Version1.1 =====================
+
+Version: 1.1
+Date:    2017-10-07
+Author:  xlzh
+Email:   xiaolongzhang2015@163.com
+Modify:  index.c/AmpWrite:add necessary field!
+
+===================== Version1.2 =====================
+
+Version: 1.2
+Date:    2017-10-07
+Author:  xlzh
+Email:   xiaolongzhang2015@163.com
+Modify:
+    query.h: add READLEN=150
+    query.c/PrimQuery: add the condition that not sequenced the reverse primer 
+    query.c/PrimTrim: strcpy seq and quality directly from the pstart to the end!
+
+Version: 1.2
+Date:    2017-10-14
+Author:  xlzh
+Email:   xiaolongzhang2015@163.com
+Modify:
+    fastq.c/FastqInit: the write out mode change to "w", to flush the existed file.
+
+===================== Version1.2.1 =====================
+
+Version: 1.2.1
+Date:    2017-11-04
+Author:  xlzh
+Email:   xiaolongzhang2015@163.com
+Modify:
+    query.c/SeqQuery: cutlen = 3 + mis, which is more reasonable and fast than previous!
+    Test/PrimMatch-1.2.1.py: modify the rules to equivalent to "SeqQuery rules".
+
+NOTE: we modify the rules of sequence query. Because Assuming that every fastq sequence 
+has a primer seq, we will sure that after query for "3+mismatch" bases, there is no 
+possibility to find the primer seq anymore!
+

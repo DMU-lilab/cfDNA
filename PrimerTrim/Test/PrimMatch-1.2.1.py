@@ -1,5 +1,14 @@
 #!/usr/bin/python2.7
 
+'''
+    Date: 2017-11-04
+
+    NOTE: we have modify the rules of sequence query.
+    Assuming that every fastq sequence has a primer seq, we are sure
+    that after query for "3+mismatch" bases, there is no possibility 
+    to find the primer seq anymore!
+'''
+
 import sys
 import os
 import gzip
@@ -126,9 +135,9 @@ def SeqQuery(seq, index, primlist, mismatch, kmer):
                   pstart       pend
        condition as above:  i = 5; h[2] = 0
     '''
-    seqlen = len(seq)
+    cutlen = 3 + mismatch
 
-    for i in xrange( seqlen - kmer + 1):
+    for i in xrange(cutlen):
         try:
             hitlist = index[seq[i:i+kmer]]
         except KeyError:
@@ -137,7 +146,7 @@ def SeqQuery(seq, index, primlist, mismatch, kmer):
         for h in hitlist:
             if i - h[2] >=0:
                 string, primer = seq[i-h[2]:], primlist[h[0]][h[1]]
-            elif (i - h[2] < 0) and (i - h[2] >= -4):
+            elif (i - h[2] < 0) and (i - h[2] >= -3):
                 string, primer = seq, primlist[h[0]][h[1]][h[2]-i:]
             else:
                 continue
@@ -161,7 +170,7 @@ def PrimQuery(readseq, index, primlist, mismatch=3, kmer=8):
     if loc[3]+insertlen > READLEN:
         return (loc[0], loc[1], loc[3]+1, 0) # the seqend never exceed insertlen
 
-    revstart = loc[3] + insertlen - 10
+    revstart = loc[3] + insertlen - 3
     revseq = readseq[revstart:]
     revprim = RevComp(primlist[loc[0]][loc[1]^1])
 
@@ -208,7 +217,7 @@ def main():
         if fastq.eof:
             break
 
-        target = PrimQuery(read[1], index, primer, 4, 8)
+        target = PrimQuery(read[1], index, primer, 3, 8)
         if target:
             PrintMatch(target, primer, read[1])
 

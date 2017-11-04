@@ -6,14 +6,14 @@ void Usage(void)
 {
     char *usage =
         "\nUsage: primtrim [options]\n"
-        "Version: 1.2\n"
+        "Version: 1.2.1\n"
         "\n"
         "Options:\n"
         "       -h|--help        print help infomation\n"
-        "       -a|--ampfile     [required] input amplicon file[.csv]\n"
-        "       -r|--read1       [required] read1 for fastq file[.fq|.gz]\n"
-        "       -l|--read2       [required] read2 for fastq file[.fq|.gz]\n"
-        "       -o|--outdir      [required] output directory for trimed fastq file\n"
+        "       -a|--ampfile     [required] input amplicon file [.csv]\n"
+        "       -r|--read1       [required] read1 for fastq file [.fq|.gz]\n"
+        "       -l|--read2       [required] read2 for fastq file [.fq|.gz]\n"
+        "       -o|--outdir      [required] output directory for trimed fastq file [dir]\n"
         "       -k|--kmer        [optional] The kmer lenght for indexing [8]\n"
         "       -m|--mismatch    [optional] the maxmum mismatch for primer seq [3]\n\n";
 
