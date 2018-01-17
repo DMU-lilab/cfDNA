@@ -137,27 +137,28 @@ void PrimTrim(fastq_t *fq, query_t *Q)
     char *seq, *qual;
     int inlen;
 
-    read = &fq->read;
-    seq = read->seq; qual = read->qual;
+    read = &fq->cache[fq->bufnum++];
+    seq = fq->read.seq; qual = fq->read.qual;
+
+    strcpy(read->name, fq->read.name); 
+    strcpy(read->mark, fq->read.mark);
 
     if (Q->isfind && Q->pend) {
         inlen = Q->pend - Q->pstart +1;
+        strncpy(read->seq, seq+Q->pstart, inlen); 
+        strcpy(read->seq+inlen, "\n");
+        strncpy(read->qual, qual+Q->pstart, inlen);
+        strcpy(read->qual+inlen, "\n");
 
-        strncpy(seq, seq+Q->pstart, inlen); 
-        seq[inlen] = '\n'; seq[inlen+1] = '\0';
-        strncpy(qual, qual+Q->pstart, inlen);
-        qual[inlen] = '\n'; qual[inlen+1] = '\0';
     }
     else if (Q->isfind && !Q->pend) {
-        strcpy(seq, seq+Q->pstart);
-        strcpy(qual, qual+Q->pstart);
+        strcpy(read->seq, seq+Q->pstart);
+        strcpy(read->qual, qual+Q->pstart);
     }
     else { // can't locate the primer seq
-        strcpy(seq, "NNNNNNNNNNNNNNNNNNNN\n");
-        strcpy(qual, "!!!!!!!!!!!!!!!!!!!!\n");
+        strcpy(read->seq, "NNNNNNNNNNNNNNNNNNNN\n");
+        strcpy(read->qual, "!!!!!!!!!!!!!!!!!!!!\n");
     }
-
-    fq->cache[fq->bufnum++] = *read;
 
     return ;
 }

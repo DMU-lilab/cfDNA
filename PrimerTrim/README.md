@@ -4,7 +4,7 @@ Used to trim off the primer sequence from amplicon fastq file
 
 
 __PROGRAM: PrimerTrim__<br>
-__VERSION: 1.2.1__<br>
+__VERSION: 1.2.2__<br>
 __PLATFORM: Linux__<br>
 __COMPILER: gcc-4.8.5__<br>
 __AUTHOR: xlzh__<br>
@@ -33,7 +33,7 @@ The simple way to compile the program, is done as follows:
 * make
 * make clean
 
-Then there will be generate an executable file ---> primtrim-1.2.1
+Then there will be generate an executable file ---> primtrim-1.2.2
 
 
 Usage

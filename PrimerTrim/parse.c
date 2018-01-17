@@ -6,7 +6,7 @@ void Usage(void)
 {
     char *usage =
         "\nUsage: primtrim [options]\n"
-        "Version: 1.2.1\n"
+        "Version: 1.2.2\n"
         "\n"
         "Options:\n"
         "       -h|--help        print help infomation\n"

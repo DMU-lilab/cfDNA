@@ -4,7 +4,7 @@ CFLAGS = -std=c99 -O2
 LIBS = -lz -lpthread
 OBJECT = fastq.o hash.o index.o parse.o query.o main.o
 
-primtrim-1.2.1: $(OBJECT)
+primtrim-1.2.2: $(OBJECT)
 	$(CC) $(CFLAGS) $(OBJECT) -o $@ $(LIBS)
 
 fastq.o: fastq.h

@@ -40,3 +40,14 @@ NOTE: we modify the rules of sequence query. Because Assuming that every fastq s
 has a primer seq, we will sure that after query for "3+mismatch" bases, there is no 
 possibility to find the primer seq anymore!
 
+===================== Version1.2.2 =====================
+
+Version: 1.2.2
+Date:    2018-01-17
+Author:  xlzh
+Email:   xiaolongzhang2015@163.com
+Modify:
+    query.c/PrimTrim: The data was copied to read cache directly.
+
+NOTE: The function of strcpy is not safe when the memory of src and dest have overlap!
+
