@@ -2,130 +2,139 @@
 *  PROGRAM: PrimerTrim
 *  FUNCTION: Used to trim off the primer seq from the fastq file
 *  INPUT:
-*       (1) amplicon file [.csv]
+*       (1) amplicon file [format: see example]
 *       (2) fastq1 and fastq2 [.fq or .fq.gz]
 *       (3) output directory [path]
 *  OUTPUT:
 *       (1) Fastq file after trim off the primer seq [.fq]
-*       (2) Amplicon count file [.ampcount]
+*       (2) Amplicon count file [Summary.ampcount]
 *
 *  AUTHOR: xiaolong Zhang
 *  EMAIL:  xiaolongzhang2015@163.com
 *  DATE:   2017-09-21 
+*  UPDATE: 2018-04-11
 */
 
 #include <pthread.h>
 #include <time.h>
 
+#include "utils.h"
 #include "query.h"
 
+typedef struct {
+    int total, badprim, badqual;
+    int ampnum;
+    int *ampcount;
+} report_t;
+
+
 uint64_t Total = 0;
-uint64_t Bad = 0;
+uint64_t BadPrim = 0;
+uint64_t BadQual = 0;
+
 pthread_mutex_t Lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 void *process(void *arginfo)
 {
     query_t Q;
-    int total=0, bad=0;
-    int *ampcount, ampnum;
+    report_t rep = {0};
     arginfo_t *Arg = (arginfo_t *)arginfo;
     fastq_t *fq = &Arg->fastq;
 
     FastqInit(fq, Arg->args, Arg->isread2);
-
-    ampnum = Arg->fwdprim->ampnum;
-    ampcount = (int *)calloc(ampnum, sizeof(int));
-    if (!ampcount)
-        fprintf(stderr, "[Err:%s:%d]\
-                Failed to alloc memory\n", __func__, __LINE__);
+    rep.ampnum = Arg->fwdprim->ampnum;
+    err_calloc(rep.ampcount, rep.ampnum, int);
 
     while (FastqRead(fq)) {
-        total++;
-        if (fq->bufnum % BUFNUM == 0)
-            FastqWrite(fq);
+        ++rep.total;
+        if (fq->bufnum % BUFNUM == 0) FastqWrite(fq);
         
         Q = PrimQuery(fq->read.seq, Arg);
-        if (Q.isfind)
-            ampcount[Q.ploc]++;
-        else bad++;
+        if (Q.isfind) /* Even bad quality the read has */
+            rep.ampcount[Q.ploc]++;
+        else ++rep.badprim;
 
-        PrimTrim(fq, &Q);
+        Q.badqual = 0; PrimTrim(fq, &Q, Arg);
+        if (Q.badqual) rep.badqual++;
     } FastqWrite(fq);
 
     pthread_mutex_lock(&Lock); 
     amp_t *amp = Arg->fwdprim->amp;
-    for (int i=0; i < ampnum; i++)
-        amp[i].readnum += ampcount[i];
+    for (int i=0; i < rep.ampnum; i++)
+        amp[i].readnum += rep.ampcount[i];
     
-    Total += total; Bad += bad;
+    Total += rep.total; 
+    BadPrim += rep.badprim; BadQual += rep.badqual;
     pthread_mutex_unlock(&Lock);
 
-    free(ampcount);
+    free(rep.ampcount);
 }
 
 
 int main(int argc, char **argv)
 {
     pthread_t tid[2];
-    arginfo_t *arginfo1, *arginfo2;
+    arginfo_t *arginfo[2];
     time_t start, end;
-    arg_t *args;
    
+    arg_t *args = ParseOpt(argc, argv);
+    if (args->help) Usage();
 
-    args = ParseOpt(argc, argv);
-    if (args->help) 
-        Usage();
-
+    /* load the primer and kmer index infomation */
     prim_t *fwdprim = GetPrim(args->ampfile);
     prim_t **revprim_list = RevPrim(fwdprim);
     hash_t *fwdindex = InitHash(fwdprim->ampnum << 5);
     PrimIndex(fwdprim, fwdindex, args->kmer);
     hash_t **revindex_list = RevIndex(revprim_list, fwdprim->ampnum, args->kmer);
 
-    arginfo1 = (arginfo_t *)calloc(1, sizeof(arginfo_t));
-    arginfo2 = (arginfo_t *)calloc(1, sizeof(arginfo_t));
-    if (!arginfo1 || !arginfo2)
-        goto _memerror;
+    /* Sample 1000 reads to calculate the maximum read length and Phred encode */
+    int maxrl = ReadLenCheck(args->read1);
+    int phred = PhredCheck(args->read1);
+    int maxpl = MaxPrimLen(fwdprim);
 
-    arginfo1->args = args;
-    arginfo1->fwdprim = fwdprim;
-    arginfo1->revprim_list = revprim_list;
-    arginfo1->fwdindex = fwdindex;
-    arginfo1->revindex_list = revindex_list;
-
-    memcpy(arginfo2, arginfo1, sizeof(arginfo_t));
-    arginfo1->isread2 = READ1; arginfo2->isread2 = READ2;
-
-    time(&start);
-    for (int i=0; i < 2; i++) {
-        printf("[*] Processing the [thread: %d] ...\n", i+1);
-        if (i == 0)
-            pthread_create(&tid[i], NULL, process, (void*)arginfo1);
-        else
-            pthread_create(&tid[i], NULL, process, (void*)arginfo2);
+    for (int i=0; i < args->seqtype+1; ++i) {
+        err_calloc(arginfo[i], 1, arginfo_t);
+        {
+            arginfo[i]->args = args;
+            arginfo[i]->fwdprim = fwdprim;
+            arginfo[i]->revprim_list = revprim_list;
+            arginfo[i]->fwdindex = fwdindex;
+            arginfo[i]->revindex_list = revindex_list;
+        }
+        {
+            arginfo[i]->maxpl = maxpl; // maximum primer length
+            arginfo[i]->phred = phred; // phred encode mode (phred+33 or phred+64)
+            arginfo[i]->maxrl = maxrl; // maximum read length
+            arginfo[i]->isread2 = i;
+        }
     }
 
-    for (int i=0; i < 2; i++)
-        pthread_join(tid[i], NULL);
+    time(&start);
+    
+    for (int i=0; i < args->seqtype+1; i++) {
+        printf("[*] Processing the [thread: %d] ...\n", i+1);
+        pthread_create(&tid[i], NULL, process, (void*)arginfo[i]);
+    }
 
-    AmpWrite(fwdprim, arginfo1->fastq.outname);
+    for (int i=0; i < args->seqtype+1; i++)
+        pthread_join(tid[i], NULL);
+    
+    /* report the reads count within each amplicon */    
+    AmpWrite(fwdprim, args->outdir);
 
     time(&end);
-    printf("Total time consume: %.2f\n", difftime(end,start));
+    printf("Total time consume: %.1f(s)\n", difftime(end,start));
 
-    /* --------------------  summary ------------------- */
+    /* ------------------- summary ------------------- */
 
     fprintf(stderr, "\n----------------- Summary ------------------------\n");
     fprintf(stderr, "Total reads processed: %lu\n", Total);
-    fprintf(stderr, "Reads can't find primer: %lu\n", Bad);
-    fprintf(stderr, "Reads mismatch with primer: %.2f %%\n", (float)Bad/Total*100);
+    fprintf(stderr, "Reads have bad primer: %lu\n", BadPrim);
+    fprintf(stderr, "Reads have bad quality: %lu\n", BadQual);
+    fprintf(stderr, "Reads successfully trimed and have good quality: %.2f %%\n", (float)(Total-BadPrim-BadQual)/Total*100);
 
     return 0;
-
-  _memerror:
-      fprintf(stderr, \
-          "[Err:%s:%d] Failed to alloc memory\n", __func__, __LINE__);
 }
 
 

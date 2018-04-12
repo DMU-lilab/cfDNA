@@ -2,10 +2,14 @@
 
 #include "query.h"
 #include "utils.h"
-#include "dynamic.h"
 
 /* buffer length for kmer search */
 #define BLEN 6
+
+static int _compscore(const void *a, const void *b) {
+    /* sorted by descending order */
+    return ((compo_t*)b)->score - ((compo_t*)a)->score;
+}
 
 /*! @funciton: check the mismatch base
  *   @parmeters:
@@ -45,77 +49,16 @@ int MaxPrimLen(prim_t *P)
 
     for (int i=0; i < P->ampnum; ++i) {
         a = &P->amp[i];
+        
+        /* calculate the length of forward and reverse primer */
         flen = strlen(a->fwdprim);
         rlen = strlen(a->revprim);
+
+        /* obtain the maximux length of the both primer */
         max = flen > max ? flen : max;
         max = rlen > max ? rlen : max;
     }
-
     return max;
-}
-
-
-query_t HammingMode(char *seq, prim_t *P, int mis, int index, status *S)
-{
-    query_t Q = {0};
-
-    for (int i=0; i < S->node->num; ++i) {
-        loc_t *loc = &S->node->loc[i];
-        int shift = index - loc->sloc;
-
-        char *string = seq;
-        char *pstr = loc->frloc ?
-            P->amp[loc->ploc].revprim : P->amp[loc->ploc].fwdprim;
-
-        if (shift >= 0) {
-            /* string: ATGCCGAATTGATGCCTGA
-             *   pstr:   GCCGAA
-             * index=2; sloc=0 => shift=2 */
-            string = seq + shift;
-        }
-        else if (shift < 0 && shift >= -mis) {
-            /* string:   GCCGAATTGATGCCTGA
-             *   pstr: ATGCCGAA
-             * index=0; sloc=2 => shift=-2 */
-            pstr -= shift;
-        }
-        else continue;
-
-        if (MisCheck(string, pstr, mis)) {
-            Q.isfind = 1;
-            Q.ploc = loc->ploc;
-            Q.pstart = shift < 0 ? 0 : shift;
-            Q.pend = Q.pstart + strlen(pstr) - 1;
-            return Q;
-        }
-    }
-    return Q;
-}
-
-query_t DynamicMode(char *seq, compo_t *compo, prim_t *P, int mis)
-{
-    dynamic_t d;
-    query_t Q = {0};
-
-    char *pstr = compo->frloc ?
-            P->amp[compo->ploc].revprim : P->amp[compo->ploc].fwdprim;
-
-    int slen = strlen(seq);
-    int plen = strlen(pstr);
-    /* search with dynamic algorithm */
-    d = global_align(seq, slen, pstr, plen, mis);
-
-    if (d.matches >= plen-mis && d.errors <= mis) {
-        Q.isfind = 1;
-        Q.ploc = compo->ploc;
-        Q.pstart = d.start1; Q.pend = d.stop1 -1;
-    }
-    return Q;
-}
-
-static int _compscore(const void *a, const void *b) {
-    /* sorted by descending order */
-    return ((compo_t*)b)->score - ((compo_t*)a)->score;
 }
 
 static void CalHits(hit_t *hit, node_t *node, int seqi)
@@ -180,7 +123,6 @@ static hit_t *GetHits(char *seq, hash_t *H, int kmer)
     return hit;
 }
 
-
 /* CORE FUNCTION 
  *      seq: AGAAATTTGCGGAGTAAGTTGCGCTGGGGCTTTCGGCGGCGGCGATTT
  *   primer:      TTTGCGGA
@@ -189,31 +131,44 @@ static hit_t *GetHits(char *seq, hash_t *H, int kmer)
  * */
 static query_t SeqQuery(char *seq, hash_t *H, prim_t *P, int mis, int kmer)
 {
-    status S;
+    hit_t *hit;
     query_t Q = {0};
-    char key[KEYLEN];
 
-    for (int i=0; i < (BLEN<<1); i++) {
-        /* 'N' is imposible occured in primer index */
-        if (*(seq+i) == 'N') continue;
-
-        strncpy(key, seq+i, kmer); key[kmer] = '\0';
-        Search(key, H, &S);
-        if (S.find == 0) continue;
-
-        /* find the primer seq with Hanming Mode */
-        Q = HammingMode(seq, P, mis, i, &S);
-        if (Q.isfind) return Q;
-    }
-
-    /* Start the Dynamic Mode */
-    hit_t *hit = GetHits(seq, H, kmer);
-    if (!hit->hitnum) { /* can't find even one kmer hit */
+    hit = GetHits(seq, H, kmer);
+    if (!hit->hitnum) {/* can't find even one kmer hit */
         err_free(hit); return Q;
     }
-    Q = DynamicMode(seq, &hit->compo[0], P, mis);
-    err_free(hit->compo); err_free(hit);
 
+    /* only choose the first 2 high-score hit */
+    int n = hit->hitnum > 1 ? 2 : 1;
+
+    for (int i=0; i < 1; ++i) {
+        compo_t *c = &hit->compo[i];
+        int shift = c->seqi - c->sloc;
+        
+        char *string = seq;
+        char *pstr = c->frloc ?
+                P->amp[c->ploc].revprim : P->amp[c->ploc].fwdprim;
+
+        if (shift >= 0)
+            string = seq + shift;
+        else if (shift < 0 && shift >= -1 * mis)
+            pstr -= shift;
+        else
+            continue;
+
+        if (MisCheck(string, pstr, mis)) {
+            {
+                Q.isfind = 1;
+                Q.ploc = c->ploc;
+                Q.pstart = shift < 0 ? 0 : shift;
+                Q.pend = Q.pstart + strlen(pstr) -1;
+            }
+            err_free(hit->compo); err_free(hit);
+            return Q;
+        }
+    } 
+    err_free(hit->compo); err_free(hit);
     return Q;
 }
 
@@ -232,7 +187,9 @@ query_t PrimQuery(char *seq, arginfo_t *arg)
 
     strncpy(temseq, seq, arg->maxpl+BLEN);
     temseq[arg->maxpl+BLEN] = '\0';
-    f = SeqQuery(temseq, arg->fwdindex, 
+
+
+    f = SeqQuery(temseq, arg->fwdindex,
                 arg->fwdprim, arg->args->mismatch, arg->args->kmer);
     if (!f.isfind) {
         Q.isfind = 0; return Q; 
@@ -286,12 +243,14 @@ void PrimTrim(fastq_t *fq, query_t *Q, arginfo_t *arg)
     if (Q->isfind) { // find the primer sequence 
         strcpy(read->seq, seq+Q->pstart);
         strcpy(read->qual, qual+Q->pstart);
+
         if (Q->pend) {
             /* read through */
             int inlen = Q->pend - Q->pstart +1;
             strcpy(read->seq+inlen, "\n");
             strcpy(read->qual+inlen, "\n");
         }
+
         float q = MeanQuality(read->qual, arg->phred);
         if (q < arg->args->minqual) {
             Q->badqual = 1; discard = 1;

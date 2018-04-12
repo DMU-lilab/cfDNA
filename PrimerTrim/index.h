@@ -9,9 +9,9 @@
 
 #include "hash.h"
 
-#define MAXPRIMLEN 64 // maxmum length for the primer seq
-#define PRIMNUM 128   // default primer number
-#define AUXLEN 256    // maxmum length for auxinfo
+#define MAXPRIMLEN 128 // ideal maxmum length for the primer seq
+#define PRIMNUM 128    // initial primer number
+#define AUXLEN 256     // maxmum length for auxinfo
 #ifndef BUFLINE
     #define BUFLINE 1024
 #endif
@@ -47,10 +47,12 @@ typedef struct __amp_t {
 /*! @typedef prim_t
  @abstract structure for the primer
  @field ampnum     the amplicon number with the primer structure
+ @field maxplen    the maximum primer length
  @field amp        the pointer to the amplicon list
 */
 typedef struct __prim_t {
     int ampnum;
+    int maxplen;
     amp_t *amp;
 } prim_t;
 

@@ -1,4 +1,5 @@
 #include "fastq.h"
+#include "utils.h"
 
 /*! @funciton: get the basename of path
  *   @parmeters:
@@ -15,10 +16,8 @@ static char *BaseName(char *path)
         if (path[i] == '/') 
             break;
     }
-    if (i)
-        return (path+i+1);
-    else
-        return path;
+    if (i) return (path+i+1);
+    else return path;
 }
 
 
@@ -32,37 +31,106 @@ static char *BaseName(char *path)
 */
 void FastqInit(fastq_t *fq, arg_t *args, int type)
 {
-    char oname[128];
-
-    type == READ1 
-        ? strcpy(fq->inname, args->read1) 
-        : strcpy(fq->inname, args->read2);
+    char bname[128];
+    char outname[PATH_MAX];
 
     fq->bufnum = 0;
-    strcpy(oname, BaseName(args->read1));
-    char *target = strstr(oname, "_R");
-    if (!target)
-        goto _invalidfq;
+    strcpy(bname, BaseName(args->read1));
+    char *target = strstr(bname, "_R");
+    if (!target) {
+        fprintf(stderr, "[Err:FastqInit] Invalid fastq name! [eg: *_R1.*]\n");
+        exit(-2);
+    }
 
-    type == READ1 
-        ? strcpy(target, "_trim_R1.fq") 
-        : strcpy(target, "_trim_R2.fq");
-    strcpy(fq->outname, args->outdir);
-    strcat(fq->outname, oname);
+    if (type == READ1)
+        strcpy(target, "_trim_R1.fq");
+    else
+        strcpy(target, "_trim_R2.fq");
+    if (args->outdir[strlen(args->outdir) - 1] == '/')
+        sprintf(outname, "%s%s", args->outdir, bname);
+    else
+        sprintf(outname, "%s/%s", args->outdir, bname);
 
-    fq->in = gzopen(fq->inname, "r"); // open the file [gz or fq]
-    if (!fq->in) goto _inerror;
+    if (type == READ1)
+        err_gzopen(fq->in, args->read1, "r");
+    else
+        err_gzopen(fq->in, args->read2, "r");
     gzbuffer(fq->in, 524288);
-    fq->out = fopen(fq->outname, "w");
+    err_open(fq->out, outname, "w");
 
     return ;
+}
 
-  _inerror:
-      fprintf(stderr, "[Err:%s] \
-              Failed to open %s\n", __func__, fq->inname); exit(-1);
-  _invalidfq:
-      fprintf(stderr, "[Err:%s] \
-              Invalid fastq name! [stander: *_R1.fq.gz]\n", __func__); exit(-2);
+/*! @funciton: Phred encoding check
+ *   @parmeters:
+ *   @    infile     the pointer to the input fastq file [char *]
+ *   @return:
+ *   @    Phred33[0] or Phred64[1]
+*/
+int PhredCheck(char *infile)
+{
+    char *b;
+    fastq_t fq;
+    int min=128, max=0;
+
+    err_gzopen(fq.in, infile, "r");
+    for (int i=0; i < 1000; ++i) {
+        if (FastqRead(&fq)) {
+            for (b=fq.read.qual; *b != '\n'; ++b) {
+                min = *b < min ? *b : min;
+                max = *b > max ? *b : max;
+            }
+        }
+        else break;
+    } gzclose(fq.in);
+
+    if (min < 64) return Phrd33;
+    if (max > 75) return Phrd64;
+}
+
+/*! @funciton: read length check
+ *   @parmeters:
+ *   @    infile     the pointer to the input fastq file [char *]
+ *   @return:
+ *   @    maxlen     the maximum read length
+*/
+int ReadLenCheck(char *infile)
+{
+    int maxlen=0;
+    fastq_t fq;
+
+    err_gzopen(fq.in, infile, "r");
+    for (int i=0; i < 1000; ++i) {
+        if (FastqRead(&fq)) {
+            int curlen = strlen(fq.read.seq) - 1;
+            maxlen = curlen > maxlen ? curlen : maxlen;
+        }
+        else break;
+    } gzclose(fq.in);
+
+    return maxlen;
+}
+
+/*! @funciton: calculate the average quality
+ *   @parmeters:
+ *   @    qual       the pointer to the quality [char *]
+ *   @    phred      the Phred encoding [int]
+ *   @return:
+ *   @    mean quality
+*/
+float MeanQuality(char *qual, int phred)
+{
+    int q_sum=0, num=0;
+    int ascii[2] = {33, 64};
+
+    for (qual; *qual; ++qual) {
+        if (*qual != '\r' && *qual != '\n') {
+            q_sum += *qual - ascii[phred];
+            ++num;
+        }
+    }
+    
+    return (float)q_sum/num;
 }
 
 

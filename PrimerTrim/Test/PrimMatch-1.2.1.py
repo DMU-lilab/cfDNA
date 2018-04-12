@@ -18,6 +18,7 @@ import os.path
 # global variable
 MAXPRIMLEN = 50
 READLEN = 150
+BLEN = 6 # bufer length for search
 
 class FqIterator(object):
     def __init__(self, inFile):
@@ -57,7 +58,7 @@ def GetPrim(primerfile):
                 break
 
         for line in fp.readlines():
-            llist = line.split(',')
+            llist = line.split()
             primer.append( (llist[0], llist[1], int(llist[2])) )
 
     return primer
@@ -135,7 +136,7 @@ def SeqQuery(seq, index, primlist, mismatch, kmer):
                   pstart       pend
        condition as above:  i = 5; h[2] = 0
     '''
-    cutlen = 3 + mismatch
+    cutlen = 2 * BLEN
 
     for i in xrange(cutlen):
         try:
@@ -146,7 +147,7 @@ def SeqQuery(seq, index, primlist, mismatch, kmer):
         for h in hitlist:
             if i - h[2] >=0:
                 string, primer = seq[i-h[2]:], primlist[h[0]][h[1]]
-            elif (i - h[2] < 0) and (i - h[2] >= -3):
+            elif (i - h[2] < 0) and (i - h[2] >= -mismatch):
                 string, primer = seq, primlist[h[0]][h[1]][h[2]-i:]
             else:
                 continue
@@ -159,7 +160,7 @@ def SeqQuery(seq, index, primlist, mismatch, kmer):
 
 
 def PrimQuery(readseq, index, primlist, mismatch=3, kmer=8):
-    fwdseq = readseq[:MAXPRIMLEN]
+    fwdseq = readseq[:MAXPRIMLEN+BLEN]
 
     loc = SeqQuery(fwdseq, index, primlist, mismatch, kmer)
     if not loc:
@@ -201,11 +202,11 @@ def PrintMatch(target, Primer, seq):
 
 def main():
     args = sys.argv
-    # args[1]: amplicon.csv
+    # args[1]: amplicon.txt
     # args[2]: fastq file
 
     if len(args) != 3:
-        sys.stderr.write('Usage: python verify.py <amplicon.csv> <*.fq/*.fq.gz>\n')
+        sys.stderr.write('Usage: python verify.py <amplicon.txt> <*.fq/*.fq.gz>\n')
         sys.exit(1)
 
     primer = GetPrim(args[1])

@@ -9,8 +9,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define KEYLEN 64 // maxmum length for hash key
-#define LOCNUM 8  // defaule number for location index
+#define KEYLEN 128 // maxmum length for hash key
+#define LOCNUM 8   // initial number for location index
 
 
 /*! @typedef loc_t
@@ -36,8 +36,8 @@ typedef struct __loc_t {
 typedef struct __node_t node_t;
 struct __node_t {
     int num;
-    loc_t *loc;
     char key[KEYLEN];
+    loc_t *loc;
     node_t *next;
 };
 

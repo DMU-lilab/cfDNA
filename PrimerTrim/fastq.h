@@ -13,15 +13,22 @@
 #define BUFLINE 1024  // maxmum bufer line for file reading
 
 
-/* fastq type [ read1 or read2 ]*/
-enum TYPE { READ1 = 0, READ2 = 1 };
+/* fastq type [ read1 or read2 ] */
+enum READTYPE { READ1 = 0, READ2 = 1 };
+/* sequencing type SE (Single-end) and PE (Paired-end) */
+enum SEQTYPE { SE = 0, PE = 1 };
+/* illumina quality type phred+33(33<=qual<=75) and phred+64(64<=qual<=106)*/
+enum ILLUMINATYPE { Phrd33 = 0, Phrd64 = 1};
 
 /*! @typedef arg_t
  @abstract structure for the comand line args
  @field help         [0 | 1] if 1: print the help infomation
  @field kmer         the length for primer index
  @field mismatch     mismatch allowed between the primer and sequence
- @field ampfile      the path of amplicon file [.csv]
+ @field seqtype      sequencing type which include single-end and paired-end
+ @field keep         if true, keep the complete reads that can not find primer
+ @field minqual      the mimimum average quality of the reads after trimming
+ @field ampfile      the path of amplicon file [format: see example]
  @field read1        the path of fastq file of R1 [_R1.fq]
  @field read2        the path of fastq file of R2 [_R2.fq]
  @field outdir       the path of the output directory [~/]
@@ -30,6 +37,9 @@ typedef struct __arg_t {
     int help;
     int kmer;
     int mismatch;
+    int seqtype; // SE(single) or PE(pair)
+    int keep;    // 0 or 1
+    int minqual; // default: 20
     char ampfile[PATH_MAX];
     char read1[PATH_MAX];
     char read2[PATH_MAX];
@@ -58,8 +68,6 @@ typedef struct __read_t {
  @field read         a fastq read group
  @field bufnum       the bufnum for the cache
  @field cache        the buffer for the fastq cache
- @field inname       the input file name
- @field outname      the output file name
 */
 typedef struct __fastq_t {
     gzFile in;
@@ -67,13 +75,14 @@ typedef struct __fastq_t {
     read_t read;
     int bufnum;
     read_t cache[BUFNUM];
-    char inname[PATH_MAX];
-    char outname[PATH_MAX];
 } fastq_t;
 
 
 /* prototype function */
 void FastqInit(fastq_t *, arg_t *, int);
+int PhredCheck(char *);
+int ReadLenCheck(char *);
+float MeanQuality(char *, int);
 int FastqRead(fastq_t *);
 void FastqWrite(fastq_t *);
 

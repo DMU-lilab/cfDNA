@@ -1,35 +1,9 @@
 /* building index with hash table */
 
 #include "index.h"
+#include "utils.h"
 #include <linux/limits.h>
 
-
-/*! @funciton: split the primer line
- *   @parmeters:
- *   @    bufline   the pointer to the primer line [char *]
- *   @    amp       the pointer to the amplicon line [amp_t *]
- *   @return:
- *   @    void         [void]
-*/
-static void LineSplit(char *bufline, amp_t *amp)
-{
-    char *pword;
-
-    pword = strtok(bufline, ",");
-    strcpy(amp->fwdprim, pword);
-
-    for (int i=0; i < 2; i++) {
-        pword = strtok(NULL, ",");
-
-        if (!i)
-            strcpy(amp->revprim, pword);
-        else
-            amp->insertlen = atoi(pword);
-    } amp->readnum = 0;
-
-    pword = strtok(NULL, "\n");
-    strcpy(amp->auxinfo, pword);
-}
 
 /*! @funciton: split the primer line
  *   @parmeters:
@@ -40,45 +14,37 @@ static void LineSplit(char *bufline, amp_t *amp)
 prim_t *GetPrim(char *filename)
 {
     char buf[BUFLINE];
+    amp_t *a; prim_t *p;
+    FILE *file;
 
-    FILE *file = fopen(filename, "r");
-    if (!file)
-        goto _ferror;
-
-    prim_t *p = (prim_t *)calloc(1, sizeof(prim_t));
-    p->amp = (amp_t *)calloc(1, sizeof(amp_t));
-
-    if (!p || !p->amp)
-        goto _memerror;
+    err_open(file, filename, "r");
+    err_calloc(p, 1, prim_t);
+    err_calloc(p->amp, 1, amp_t);
 
     while (fgets(buf, BUFLINE, file)) {
         if (buf[0] != '#') {
             /* realloc necessary memory for amplicon list */
             if (p->ampnum % PRIMNUM == 0) {
                 int newsize = p->ampnum + PRIMNUM;
-                amp_t *tem = (amp_t *)realloc(p->amp, newsize*sizeof(amp_t));
-                if (!tem) goto _memerror;
-                p->amp = tem;
+                err_realloc(p->amp, newsize, amp_t);
             }
-            LineSplit(buf, &(p->amp[p->ampnum]));
+            a = &(p->amp[p->ampnum]);
+            sscanf(buf, "%s%s%d%s", 
+                    a->fwdprim, a->revprim, &a->insertlen, a->auxinfo);
             p->ampnum++;
         }
     } fclose(file);
 
     return p;
-
-  _ferror:
-      fprintf(stderr, "[Err:%s] Failed to open %s\n", __func__, filename);
-      exit(-1);
-  _memerror:
-      fprintf(stderr, "[Err:%s] Failed to alloc memory\n", __func__);
 }
+
 
 /*! @funciton: get the suffix of path
  *   @parmeters:
  *   @    path       the pointer to the path [char *]
  *   @return:
  *   @               the pointer to the suffix start
+ *   NOTE: Deprecated Now!!!
 */
 static char *GetSuffix(char *path)
 {
@@ -127,27 +93,18 @@ prim_t **RevPrim(prim_t *P)
 {
     prim_t **primlist;
     
-    primlist = (prim_t **)calloc(P->ampnum, sizeof(prim_t*));
-    if (!primlist)
-        goto _memerror;
-
+    err_calloc(primlist, P->ampnum, prim_t*);
     for (int i=0; i < P->ampnum; i++) {
-        primlist[i] = (prim_t *)malloc(sizeof(prim_t));
-        primlist[i]->amp = (amp_t *)malloc(sizeof(amp_t));
-        if (!primlist[i] || !primlist[i]->amp)
-            goto _memerror;
+        err_malloc(primlist[i], 1, prim_t);
+        err_malloc(primlist[i]->amp, 1, amp_t);
 
         primlist[i]->ampnum = 1;
         primlist[i]->amp[0] = P->amp[i];
-
         RevComp(primlist[i]->amp[0].fwdprim);
         RevComp(primlist[i]->amp[0].revprim);
     }
 
     return primlist;
-
-  _memerror:
-      fprintf(stderr, "[Err:%s] Failed to alloc memory\n", __func__);
 }
 
 
@@ -195,19 +152,13 @@ hash_t **RevIndex(prim_t **P, int ampnum, int kmer)
 {
     hash_t **revlist;
 
-    revlist = (hash_t **)calloc(ampnum, sizeof(hash_t*));
-    if (!revlist)
-        goto _memerror;
-
+    err_calloc(revlist, ampnum, hash_t*);
     for (int i=0; i < ampnum; i++) {
         revlist[i] = InitHash(1<<5);
         PrimIndex(P[i], revlist[i], kmer);
     }
 
     return revlist;
-
-  _memerror:
-      fprintf(stderr, "[Err:%s] Failed to alloc memory\n", __func__);
 }
 
 
@@ -221,17 +172,20 @@ hash_t **RevIndex(prim_t **P, int ampnum, int kmer)
 void AmpWrite(prim_t *prim, char *path)
 {
     char fname[PATH_MAX];
+    char *bname = "Summary.ampcount";
+    FILE *fp;
 
-    strcpy(fname, path);
-    strcpy(GetSuffix(fname), ".ampcount");
+    if (path[strlen(path) -1] == '/')
+        sprintf(fname, "%s%s", path, bname);
+    else
+        sprintf(fname, "%s/%s", path, bname);
 
-    FILE *fp = fopen(fname, "w");
-
-    fprintf(fp, "Gene,Chrom,AmpStart,InsertStart,InsertEnd,AmpEnd,FwdPrim,RevPrim,AmpCount\n");
+    err_open(fp, fname, "w");
+    fprintf(fp, "FwdPrimer\tRevPrimer\tAmpCount\tAuxInfo\n");
     for (int i=0; i < prim->ampnum; i++) {
         amp_t *amp = &prim->amp[i];
-        fprintf(fp, "%s,%s,%s,%d\n", \
-                amp->auxinfo, amp->fwdprim, amp->revprim, amp->readnum);
+        fprintf(fp, "%s\t%s\t%d\t%s\n", \
+                amp->fwdprim, amp->revprim, amp->readnum, amp->auxinfo);
     } fclose(fp);
 
     return ;
