@@ -171,7 +171,7 @@ def PrimQuery(readseq, index, primlist, mismatch=3, kmer=8):
     if loc[3]+insertlen > READLEN:
         return (loc[0], loc[1], loc[3]+1, 0) # the seqend never exceed insertlen
 
-    revstart = loc[3] + insertlen - 3
+    revstart = loc[3] + insertlen - BLEN
     revseq = readseq[revstart:]
     revprim = RevComp(primlist[loc[0]][loc[1]^1])
 
