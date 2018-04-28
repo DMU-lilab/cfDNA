@@ -294,7 +294,12 @@ void PrimTrim(fastq_t *fq, query_t *Q, arginfo_t *arg)
         }
         float q = MeanQuality(read->qual, arg->phred);
         if (q < arg->args->minqual) {
-            Q->badqual = 1; discard = 1;
+            Q->badqual = 1;
+            if (arg->args->keep) {
+                strcpy(read->seq, fq->read.seq);
+                strcpy(read->qual, fq->read.qual);
+            }
+            else discard = 1;
         }
     }
     else { // can't find the primer sequence
